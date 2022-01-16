@@ -6,3 +6,12 @@
 
 // Bootstrap
 @import '~bootstrap/scss/bootstrap';
+
+// Custom imports
+
+@import "~samim-font/dist/font-face.css";
+@import "~shabnam-font/dist/font-face.css";
+@import "~vazir-font/dist/font-face.css";
+@import "~iransans-fontface/css/iransans/sass/iransans-fontface.scss";
+@import "iransansweb";
+@import "custom";

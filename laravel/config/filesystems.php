@@ -64,6 +64,13 @@ return [
             'url' => env('AWS_URL'),
         ],
 
+        'download' => [
+            'driver' => 'local',
+            'root' => public_path('download'),
+            'url' => env('APP_URL').'/download',
+            'visibility' => 'public',
+        ],
+
     ],
 
 ];

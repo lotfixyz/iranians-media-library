@@ -1,1 +1,7 @@
 /laravel/composer.lock
+/laravel/.idea
+/public_html/download
+/public_html/mix-manifest.json
+/laravel/_ide_helper.php
+/laravel/.phpstorm.meta.php
+/laravel/package-lock.json
