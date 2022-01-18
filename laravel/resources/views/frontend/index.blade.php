@@ -10,7 +10,7 @@
             </strong>
             <br />
             --}}
-            <img src="{{ asset('images/welcome.png') }}" alt=""/>
+            <img src="{{ asset('images/welcome.png') }}" alt="" style="max-width: 100%;"/>
             <br/>
             <br/>
             به کتابخانه رسانه ایرانیان خوش آمدید.

@@ -123,6 +123,7 @@ class StorageContent
     {
         // Initialize disk and storage.
         $items = $this->disk->listContents($this->path);
+		//dd($items);
         // Begin read raw config, folders and files.
         $config = new stdClass();
         $config->has_folder = false;
@@ -144,7 +145,7 @@ class StorageContent
                     {
                         $config = $this->get_config($raw_config);
                     }
-                } elseif ('.' === substr($item['filename'], 0, 1))
+                } elseif ('.' === substr($item['basename'], 0, 1))
                 {
                     $noname_files[] = $item;
                 } else
@@ -160,7 +161,7 @@ class StorageContent
         foreach ($raw_folders as $raw_folder)
         {
             $folder = new stdClass();
-            $folder->name = $raw_folder['filename'];
+            $folder->name = $raw_folder['basename'];
             $folder->path = $raw_folder['path'];
             $folder->path = $raw_folder['path'];
             $folder->timestamp = date('Y-m-d H:i:s', $raw_folder['timestamp']);
@@ -213,7 +214,7 @@ class StorageContent
         foreach ($raw_files as $raw_file)
         {
             $file = new stdClass();
-            $file->name = $raw_file['filename'];
+            $file->name = isset($raw_file['extension']) ? str_replace('.' . $raw_file['extension'], null, $raw_file['basename']) : $raw_file['basename'];
             $file->extension = $raw_file['extension'];
             $file->full_name = $file->name . ($file->extension ? '.' . $file->extension : null);
             $file->disk_path = $this->disk->path("$this->path/$file->full_name");
