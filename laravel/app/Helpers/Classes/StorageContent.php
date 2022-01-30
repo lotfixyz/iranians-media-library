@@ -2,8 +2,9 @@
 
 namespace App\Helpers\Classes;
 
+use Illuminate\Support\Facades\Storage;
+use Owenoj\LaravelGetId3\GetId3;
 use stdClass;
-use Storage;
 
 /**
  *
@@ -51,14 +52,23 @@ class StorageContent
             {
                 $folder->has_description = false;
             }
-            // Order
-            if (isset($folder_data->order))
+            // Link
+            if (isset($folder_data->link))
             {
-                $folder->has_order = true;
-                $folder->order = $folder_data->order;
+                $folder->has_link = true;
+                $folder->link = $folder_data->link;
             } else
             {
-                $folder->has_order = false;
+                $folder->has_link = false;
+            }
+            // Order
+            if ($folder->has_order = isset($folder_data->order))
+            {
+                $folder->order = $folder_data->order;
+            }
+            if ($folder->has_order_end = isset($folder_data->order_end))
+            {
+                $folder->order_end = $folder_data->order_end;
             }
             $r->folder = $folder;
         } else
@@ -81,13 +91,13 @@ class StorageContent
                 $file->has_description = false;
             }
             // Order
-            if (isset($file_data->order))
+            if ($file->has_order = isset($file_data->order))
             {
-                $file->has_order = true;
                 $file->order = $file_data->order;
-            } else
+            }
+            if ($file->has_order_end = isset($file_data->order_end))
             {
-                $file->has_order = false;
+                $file->order_end = $file_data->order_end;
             }
             $r->file = $file;
         } else
@@ -116,14 +126,52 @@ class StorageContent
     }
 
     /**
+     * @param $file
+     * @return array|string|string[]|null
+     */
+    private function get_file_title($file)
+    {
+        $pattern = '/ \[(\d+)Kbps\]/i';
+        $title = str_replace(' - medialib.ir', null, $file->name);
+
+        return preg_replace($pattern, null, $title);
+    }
+
+    /**
+     * @param $file
+     * @return \stdClass
+     */
+    private function get_file_info($file): stdClass
+    {
+        $pattern = '/ \[(\d+)Kbps\]/i';
+        preg_match($pattern, $file->name, $matches);
+        $r = new stdClass();
+        if ($matches)
+        {
+            $r->has_bitrate = true;
+            $r->bitrate = $matches[1];
+        } else
+        {
+            $r->has_bitrate = false;
+        }
+
+        return $r;
+    }
+
+    /**
      * @return array[]
      * @throws \League\Flysystem\FileNotFoundException
+     * @throws \getid3_exception
      */
     public function load(): array
     {
         // Initialize disk and storage.
+        if (!$this->disk->has($this->path))
+        {
+            abort(404);
+        }
         $items = $this->disk->listContents($this->path);
-		//dd($items);
+        //dd($items);
         // Begin read raw config, folders and files.
         $config = new stdClass();
         $config->has_folder = false;
@@ -161,9 +209,10 @@ class StorageContent
         foreach ($raw_folders as $raw_folder)
         {
             $folder = new stdClass();
+            $folder->type = 'folder';
             $folder->name = $raw_folder['basename'];
             $folder->path = $raw_folder['path'];
-            $folder->path = $raw_folder['path'];
+            $folder->disk_url = str_replace(env('DOWNLOAD_FOLDER') . '/', '', $this->disk->url("$this->path/$folder->name"));
             $folder->timestamp = date('Y-m-d H:i:s', $raw_folder['timestamp']);
             // Begin extra data management.
             $extra = new stdClass();
@@ -179,6 +228,16 @@ class StorageContent
                         $extra->description = $this->get_description($config->folder->description->$name);
                     }
                 }
+                if ($config->folder->has_link)
+                {
+                    $name = $folder->name;
+                    if (isset($config->folder->link->$name))
+                    {
+                        $folder->type = 'link';
+                        $folder->path = $config->folder->link->$name;
+                        $folder->disk_url = str_replace(env('DOWNLOAD_FOLDER') . '/', '', $this->disk->url("$folder->path"));
+                    }
+                }
             }
             $folder->extra = $extra;
             // End extra data management.
@@ -187,7 +246,9 @@ class StorageContent
         //dd($semi_raw_folders);
         // End read semi-raw folders.
         // Begin read folders.
-        $folders = [];
+        $folder_starts = [];
+        $folder_middles = [];
+        $folder_ends = [];
         if ($config->has_folder)
         {
             if ($config->folder->has_order)
@@ -197,16 +258,29 @@ class StorageContent
                 {
                     if (isset($semi_raw_folders[$order]))
                     {
-                        $folders[] = $semi_raw_folders[$order];
+                        $folder_starts[] = $semi_raw_folders[$order];
                         unset($semi_raw_folders[$order]);
+                    }
+                }
+            }
+            if ($config->folder->has_order_end)
+            {
+                $order_ends = $config->folder->order_end;
+                foreach ($order_ends as $order_end)
+                {
+                    if (isset($semi_raw_folders[$order_end]))
+                    {
+                        $folder_ends[] = $semi_raw_folders[$order_end];
+                        unset($semi_raw_folders[$order_end]);
                     }
                 }
             }
         }
         foreach ($semi_raw_folders as $semi_raw_folder)
         {
-            $folders[] = $semi_raw_folder;
+            $folder_middles[] = $semi_raw_folder;
         }
+        $folders = array_merge($folder_starts, $folder_middles, $folder_ends);
         //dd($folders);
         // End read folders.
         // Begin read semi-raw files.
@@ -221,6 +295,9 @@ class StorageContent
             $file->disk_url = $this->disk->url("$this->path/$file->full_name");
             $file->size = human_readable_file_size($raw_file['size']);
             $file->timestamp = date('Y-m-d H:i:s', $raw_file['timestamp']);
+            $file->mime_type = mime_content_type($file->disk_path);
+            // Additional properties.
+            $file->title = $this->get_file_title($file);
             $files[] = $file;
             // Begin extra data management.
             $extra = new stdClass();
@@ -237,6 +314,28 @@ class StorageContent
                     }
                 }
             }
+            if ('audio/mpeg' == $file->mime_type)
+            {
+                $id3v2 = new stdClass();
+                $get_id3 = new GetId3($file->disk_path);
+                $_id3 = $get_id3->extractInfo();
+                $id3v2->bitrate = intval(round($_id3['bitrate'] / 1000));
+                $extra->has_id3v2 = true;
+                $extra->id3v2 = $id3v2;
+            } else
+            {
+                $extra->has_id3v2 = false;
+            }
+            if ('application/zip' == $file->mime_type)
+            {
+                $info = new stdClass();
+                $info = $this->get_file_info($file);
+                $extra->has_info = true;
+                $extra->info = $info;
+            } else
+            {
+                $extra->has_info = false;
+            }
             $file->extra = $extra;
             // End extra data management.
             $semi_raw_files[$file->full_name] = $file;
@@ -244,7 +343,9 @@ class StorageContent
         //dd($semi_raw_files);
         // End read semi-raw files.
         // Begin read files.
-        $files = [];
+        $file_starts = [];
+        $file_middles = [];
+        $file_ends = [];
         if ($config->has_file)
         {
             if ($config->file->has_order)
@@ -254,19 +355,31 @@ class StorageContent
                 {
                     if (isset($semi_raw_files[$order]))
                     {
-                        $files[] = $semi_raw_files[$order];
+                        $file_starts[] = $semi_raw_files[$order];
                         unset($semi_raw_files[$order]);
+                    }
+                }
+            }
+            if ($config->file->has_order_end)
+            {
+                $order_ends = $config->file->order_end;
+                foreach ($order_ends as $order_end)
+                {
+                    if (isset($semi_raw_files[$order_end]))
+                    {
+                        $file_ends[] = $semi_raw_files[$order_end];
+                        unset($semi_raw_files[$order_end]);
                     }
                 }
             }
         }
         foreach ($semi_raw_files as $semi_raw_file)
         {
-            $files[] = $semi_raw_file;
+            $file_middles[] = $semi_raw_file;
         }
+        $files = array_merge($file_starts, $file_middles, $file_ends);
         //dd($files);
         // End read files.
-        //
 
         return [$folders, $files];
     }

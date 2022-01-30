@@ -14,7 +14,7 @@
                         <div class="card-body">
                             <span>طراحی و توسعه توسط <a href="http://lotfi.xyz" target="_blank">محمد لطفی</a></span>
                             |
-                            <span>نسخه 0.10 آزمایشی</span>
+                            <span>نسخه 0.35 آزمایشی</span>
                             <!--
                             |
                             <span>تماس اضطراری (09355223144)</span>

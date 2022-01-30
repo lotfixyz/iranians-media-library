@@ -17,12 +17,14 @@ Route::get('/', function () {
 });
 */
 
+use Illuminate\Support\Facades\Route;
+
 Route::group(['prefix' => '/', 'namespace' => 'Frontend'], function () {
     Route::get('', 'FrontendController@index')->name('frontend.index');
     Route::get('{domain}/{current_folder?}', 'FrontendController@domain')
         ->name('frontend.domain')
         //->where('current_folder', '[a-zA-Z0-9=]+');
-        ->where('current_folder', '[a-zA-Z0-9-_)(/\.\s\p{Arabic}]+');
+        ->where('current_folder', '[a-zA-Z0-9-_)(/\.،\s\p{Arabic}]+');
 });
 
 Route::group(['prefix' => env('DOWNLOAD_FOLDER'), 'namespace' => 'Frontend'], function () {

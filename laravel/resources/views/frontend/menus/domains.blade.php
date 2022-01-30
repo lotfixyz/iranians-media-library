@@ -1,7 +1,6 @@
 <div class="card">
     <div class="card-header">لیست کتابخانه&zwnj;ها</div>
     <div class="card-body">
-    <!--<a href="{{ route('frontend.index') }}">صفحه اصلی</a><br/>-->
         @forelse($domains as $domain)
             <a href="{{ route('frontend.domain', [$domain->name]) }}">{!! $domain->title !!}</a><br/>
         @empty
